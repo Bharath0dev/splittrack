@@ -445,11 +445,15 @@ const HomePage = () => {
   }, []);
 
   // ── Logout ────────────────────────────────────────────────────────────────
+  // const handleLogout = useCallback(() => {
+  //   localStorage.removeItem("token");
+  //   localStorage.removeItem("st_user");
+  //   // If you have a router, use navigate("/login") here instead
+  //   window.location.href = "/login";
+  // }, []);
   const handleLogout = useCallback(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("st_user");
-    // If you have a router, use navigate("/login") here instead
-    window.location.href = "/login";
+    localStorage.clear(); // clears everything safely
+    window.location.replace("/"); // better than href
   }, []);
 
   // ── Load expenses ─────────────────────────────────────────────────────────
@@ -504,32 +508,109 @@ const HomePage = () => {
   const openAddBudget   = ()           => { setBudForm(BLANK_BUD); setBudgetModal(true); };
   const openEditBudget  = (cat, limit) => { setBudForm({ category:cat, limit:String(limit) }); setBudgetModal(true); };
 
-  const handleSaveBudget = () => {
+  // const handleSaveBudget = () => {
+  //   const { category, limit } = budForm;
+  //   if (!category || !limit || isNaN(parseFloat(limit)) || parseFloat(limit) <= 0) {
+  //     showToast("⚠️ Select a category and enter a valid limit"); return;
+  //   }
+  //   setBudgets(prev => ({ ...prev, [category]: parseFloat(limit) }));
+  //   setBudgetModal(false);
+  //   showToast("✅ Budget saved");
+  // };
+
+  const handleSaveBudget = async () => {
     const { category, limit } = budForm;
-    if (!category || !limit || isNaN(parseFloat(limit)) || parseFloat(limit) <= 0) {
-      showToast("⚠️ Select a category and enter a valid limit"); return;
+
+    if (!category || !limit || isNaN(limit) || limit <= 0) {
+      showToast("⚠️ Enter valid data");
+      return;
     }
-    setBudgets(prev => ({ ...prev, [category]: parseFloat(limit) }));
-    setBudgetModal(false);
-    showToast("✅ Budget saved");
+
+    try {
+      await fetch(`${BASE_URL}/category-budget`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          category,
+          amount: parseFloat(limit)
+        })
+      });
+
+      await loadCategoryBudgets();
+
+      setBudgetModal(false);
+      showToast("✅ Budget saved");
+    } catch {
+      showToast("❌ Failed to save budget");
+    }
   };
 
-  const handleDeleteBudget = (cat) => {
-    setBudgets(prev => { const n = {...prev}; delete n[cat]; return n; });
-    setBudgetModal(false);
-    showToast("🗑️ Budget removed");
+  // const handleDeleteBudget = (cat) => {
+  //   setBudgets(prev => { const n = {...prev}; delete n[cat]; return n; });
+  //   setBudgetModal(false);
+  //   showToast("🗑️ Budget removed");
+  // };
+
+  const handleDeleteBudget = async (cat) => {
+    try {
+      await fetch(`${BASE_URL}/category-budget/${cat}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      await loadCategoryBudgets();
+
+      setBudgetModal(false);
+      showToast("🗑️ Budget removed");
+    } catch {
+      showToast("❌ Failed to delete");
+    }
+  };
+
+
+  const loadCategoryBudgets = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/category-budget`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      const map = {};
+      data.forEach(b => map[b.category] = Number(b.amount));
+
+      setBudgets(map);
+    } catch {
+      showToast("❌ Failed to load budgets");
+    }
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const now = new Date();
+  // const now = new Date();
+  
+  // const thisMonth = expenses.filter(e => {
+  //   const d = new Date(e.date);
+  //   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  // });
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    return new Date().toISOString().slice(0, 7); // "2026-03"
+  });
+
+  const selectedDate = new Date(selectedMonth);
+
   const thisMonth = expenses.filter(e => {
     const d = new Date(e.date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    return d.getMonth() === selectedDate.getMonth() &&
+          d.getFullYear() === selectedDate.getFullYear();
   });
   const totalExpenses = thisMonth.reduce((s,e) => s + Number(e.amount), 0);
   // const totalIncome   = 85000;
   // const totalIncome = income;
-  const currentKey = now.toISOString().slice(0, 7);
+  // const currentKey = now.toISOString().slice(0, 7);
+  const currentKey = selectedMonth;
   const totalIncome = incomeByMonth[currentKey] || 0;
   const netSavings    = totalIncome - totalExpenses;
   // const budgetLimit   = 40000;
@@ -538,7 +619,27 @@ const HomePage = () => {
   const budgetPct = budgetLimit
   ? Math.round((totalExpenses / budgetLimit) * 100)
   : 0;
-  const avgPerDay     = now.getDate() ? Math.round(totalExpenses / now.getDate()) : 0;
+  // const avgPerDay     = now.getDate() ? Math.round(totalExpenses / now.getDate()) : 0;
+  // const avgPerDay = selectedDate.getDate()
+  //   ? Math.round(totalExpenses / selectedDate.getDate())
+  //   : 0;
+  const currentDate = new Date();
+
+  const isCurrentMonth =
+    selectedDate.getMonth() === currentDate.getMonth() &&
+    selectedDate.getFullYear() === currentDate.getFullYear();
+
+  const daysCount = isCurrentMonth
+    ? currentDate.getDate()
+    : new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth() + 1,
+        0
+      ).getDate();
+
+  const avgPerDay = daysCount   
+    ? Math.round(totalExpenses / daysCount)
+    : 0;
 
   const catMap = {};
   thisMonth.forEach(e => { const c = e.category||"Other"; catMap[c] = (catMap[c]||0) + Number(e.amount); });
@@ -549,8 +650,13 @@ const HomePage = () => {
     cls: (catMap[cat]||0)/limit > 1 ? "over" : (catMap[cat]||0)/limit > 0.8 ? "warn" : "safe",
   }));
 
-  const sorted     = [...expenses].sort((a,b) => new Date(b.date) - new Date(a.date));
-  const monthLabel = now.toLocaleString("default", { month:"long", year:"numeric" });
+  // const sorted     = [...expenses].sort((a,b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...thisMonth].sort((a,b) => Number(b.amount) - Number(a.amount));
+  // const monthLabel = now.toLocaleString("default", { month:"long", year:"numeric" });
+  const monthLabel = selectedDate.toLocaleString("default", {
+    month: "long",
+    year: "numeric"
+  });
   const catSpent   = expForm.category ? (catMap[expForm.category]||0) : null;
   const catBudget  = expForm.category ? (budgets[expForm.category]||null) : null;
 
@@ -558,6 +664,42 @@ const HomePage = () => {
     const now = new Date();
     return now.toISOString().slice(0, 7); // "2026-03"
   });
+
+
+  const loadIncome = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/income`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+
+      const map = {};
+      data.forEach(i => map[i.month] = Number(i.amount));
+
+      setIncomeByMonth(map);
+    } catch {
+      showToast("❌ Failed to load income");
+    }
+  };
+
+  const loadMonthlyBudget = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/monthly-budget`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+
+      const map = {};
+      data.forEach(b => map[b.month] = Number(b.amount));
+
+      setMonthlyBudget(map);
+    } catch {
+      showToast("❌ Failed to load monthly budget");
+    }
+  };
+
   useEffect(() => {
     if (!incomeMonth) return;
 
@@ -565,6 +707,22 @@ const HomePage = () => {
     setIncomeInput(existingIncome);
   }, [incomeMonth, incomeByMonth]);
  
+  useEffect(() => {
+    if (!token) return;
+
+    loadCategoryBudgets();
+    loadIncome();
+    loadMonthlyBudget();
+  }, [token]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      window.location.href = "/";
+    }
+  }, []);
+
   return (
     <>
       <style>{css}</style>
@@ -578,7 +736,26 @@ const HomePage = () => {
             <button className={`st-nav-btn${activeTab==="groups"?"   active":""}`} onClick={() => setActiveTab("groups")}>Groups</button>
           </div>
           <div className="st-topbar-right">
-            <div className="st-month-badge">{monthLabel}</div>
+            {/* <div className="st-month-badge">{monthLabel}</div> */}
+
+            <select
+              className="st-select"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{ width: "160px", fontSize: "13px", padding: "6px 10px" }}
+            >
+              {Array.from({ length: 12 }).map((_, i) => {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const value = d.toISOString().slice(0, 7);
+
+                return (
+                  <option key={value} value={value}>
+                    {d.toLocaleString("default", { month: "long", year: "numeric" })}
+                  </option>
+                );
+              })}
+            </select>
             {/* ── Profile icon + dropdown ── */}
             {/* <ProfileDropdown onLogout={handleLogout} /> */}
             <ProfileDropdown 
@@ -891,8 +1068,19 @@ const HomePage = () => {
           title="Update Monthly Income"
           footer={
             <>
-              <button className="st-btn-secondary" onClick={() => 
-                {
+              <button className="st-btn-secondary" onClick={() => setIncomeModal(false)}>
+                Cancel
+              </button>
+              <button
+                className="st-btn-primary"
+                // onClick={() => {
+                //   if (!incomeInput || isNaN(incomeInput)) return;
+                //   setIncome(parseFloat(incomeInput));
+                //   setIncomeModal(false);
+                //   setIncomeInput("");
+                //   showToast("✅ Income updated");
+                // }}
+                onClick={async () => {
                   const val = parseFloat(incomeInput);
 
                   if (!val || val <= 0) {
@@ -900,25 +1088,26 @@ const HomePage = () => {
                     return;
                   }
 
-                  setIncomeByMonth(prev => ({
-                    ...prev,
-                    [incomeMonth]: val
-                  }));
+                  try {
+                    await fetch(`${BASE_URL}/income`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        month: incomeMonth,
+                        amount: val
+                      })
+                    });
 
-                  setIncomeModal(false);
-                  showToast("✅ Income saved");
-                }
-              }>
-                Cancel
-              </button>
-              <button
-                className="st-btn-primary"
-                onClick={() => {
-                  if (!incomeInput || isNaN(incomeInput)) return;
-                  setIncome(parseFloat(incomeInput));
-                  setIncomeModal(false);
-                  setIncomeInput("");
-                  showToast("✅ Income updated");
+                    await loadIncome();
+
+                    setIncomeModal(false);
+                    showToast("✅ Income saved");
+                  } catch {
+                    showToast("❌ Failed to save income");
+                  }
                 }}
               >
                 Save Income
@@ -963,7 +1152,23 @@ const HomePage = () => {
               </button>
               <button
                 className="st-btn-primary"
-                onClick={() => {
+                // onClick={() => {
+                //   const val = parseFloat(monthlyBudgetInput);
+
+                //   if (!val || val <= 0) {
+                //     showToast("⚠️ Enter valid budget");
+                //     return;
+                //   }
+
+                //   setMonthlyBudget(prev => ({
+                //     ...prev,
+                //     [currentKey]: val
+                //   }));
+
+                //   setMonthlyBudgetModal(false);
+                //   showToast("✅ Monthly budget saved");
+                // }}
+                onClick={async () => {
                   const val = parseFloat(monthlyBudgetInput);
 
                   if (!val || val <= 0) {
@@ -971,13 +1176,26 @@ const HomePage = () => {
                     return;
                   }
 
-                  setMonthlyBudget(prev => ({
-                    ...prev,
-                    [currentKey]: val
-                  }));
+                  try {
+                    await fetch(`${BASE_URL}/monthly-budget`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        month: currentKey,
+                        amount: val
+                      })
+                    });
 
-                  setMonthlyBudgetModal(false);
-                  showToast("✅ Monthly budget saved");
+                    await loadMonthlyBudget();
+
+                    setMonthlyBudgetModal(false);
+                    showToast("✅ Monthly budget saved");
+                  } catch {
+                    showToast("❌ Failed to save budget");
+                  }
                 }}
               >
                 Save

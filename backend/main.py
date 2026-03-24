@@ -150,6 +150,7 @@ def update_expense(id: int, expense: schemas.ExpenseCreate, db=Depends(get_db), 
         raise HTTPException(status_code=404, detail="Not found")
     exp.amount = expense.amount
     exp.description = expense.description
+    exp.category = expense.category
     exp.date = expense.date
     db.commit()
     db.refresh(exp)
@@ -170,3 +171,109 @@ def delete_expense(id: int, db: Session = Depends(get_db), user=Depends(get_curr
     db.commit()
 
     return {"message": "Deleted"}
+
+
+@app.post("/income")
+def add_income(
+    data: schemas.IncomeCreate,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    existing = db.query(models.Income).filter(
+        models.Income.user_id == user.id,
+        models.Income.month == data.month
+    ).first()
+
+    if existing:
+        existing.amount = data.amount
+    else:
+        new_income = models.Income(
+            user_id=user.id,
+            month=data.month,
+            amount=data.amount
+        )
+        db.add(new_income)
+
+    db.commit()
+    return {"message": "Income saved"}
+
+
+@app.get("/income", response_model=List[schemas.IncomeRead])
+def get_income(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    return db.query(models.Income).filter(
+        models.Income.user_id == user.id
+    ).all()
+
+
+@app.post("/monthly-budget")
+def set_monthly_budget(
+    data: schemas.MonthlyBudgetCreate,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    existing = db.query(models.MonthlyBudget).filter(
+        models.MonthlyBudget.user_id == user.id,
+        models.MonthlyBudget.month == data.month
+    ).first()
+
+    if existing:
+        existing.amount = data.amount
+    else:
+        new_budget = models.MonthlyBudget(
+            user_id=user.id,
+            month=data.month,
+            amount=data.amount
+        )
+        db.add(new_budget)
+
+    db.commit()
+    return {"message": "Monthly budget saved"}
+
+
+@app.get("/monthly-budget", response_model=List[schemas.MonthlyBudgetRead])
+def get_monthly_budget(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    return db.query(models.MonthlyBudget).filter(
+        models.MonthlyBudget.user_id == user.id
+    ).all()
+
+
+@app.post("/category-budget")
+def set_category_budget(
+    data: schemas.CategoryBudgetCreate,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    existing = db.query(models.CategoryBudget).filter(
+        models.CategoryBudget.user_id == user.id,
+        models.CategoryBudget.category == data.category
+    ).first()
+
+    if existing:
+        existing.amount = data.amount
+    else:
+        new_budget = models.CategoryBudget(
+            user_id=user.id,
+            category=data.category,
+            amount=data.amount
+        )
+        db.add(new_budget)
+
+    db.commit()
+    return {"message": "Category budget saved"}
+
+
+
+@app.get("/category-budget", response_model=List[schemas.CategoryBudgetRead])
+def get_category_budget(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    return db.query(models.CategoryBudget).filter(
+        models.CategoryBudget.user_id == user.id
+    ).all()
