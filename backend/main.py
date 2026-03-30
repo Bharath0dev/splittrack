@@ -1,3 +1,7 @@
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
 from fastapi import FastAPI, status, Depends, HTTPException
 from database import engine, Base, SessionLocal
 import models
@@ -40,9 +44,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# @app.get("/")
+# def read_root():
+#     return {"message": "API Running"}
+
+# Serve frontend static files
+app.mount("/assets", StaticFiles(directory="frontend_dist/assets"), name="assets")
+
+# Serve React app
 @app.get("/")
-def read_root():
-    return {"message": "API Running"}
+def serve_frontend():
+    return FileResponse("frontend_dist/index.html")
 
 # Password hashing
 def hash_password(password: str) -> str:
