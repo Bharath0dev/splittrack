@@ -3,9 +3,13 @@ from fastapi.responses import FileResponse
 import os
 
 from fastapi import FastAPI, status, Depends, HTTPException
-from database import engine, Base, SessionLocal
-import models
-import schemas
+# from database import engine, Base, SessionLocal
+# import models
+# import schemas
+
+from backend.database import engine, Base, SessionLocal
+from backend import models, schemas
+
 import bcrypt
 from sqlalchemy.orm import Session
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
