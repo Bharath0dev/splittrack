@@ -53,12 +53,24 @@ app.add_middleware(
 #     return {"message": "API Running"}
 
 # Serve frontend static files
-app.mount("/assets", StaticFiles(directory="frontend_dist/assets"), name="assets")
+# app.mount("/assets", StaticFiles(directory="frontend_dist/assets"), name="assets")
+# app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="assets")
 
 # Serve React app
+# @app.get("/")
+# def serve_frontend():
+#     return FileResponse("frontend/dist/index.html")
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+frontend_path = os.path.join(BASE_DIR, "frontend", "dist")
+
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+
 @app.get("/")
 def serve_frontend():
-    return FileResponse("frontend_dist/index.html")
+    index_path = os.path.join(BASE_DIR, "frontend", "dist", "index.html")
+    return FileResponse(index_path)
 
 # Password hashing
 def hash_password(password: str) -> str:
