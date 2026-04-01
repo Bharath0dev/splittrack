@@ -42,7 +42,7 @@ origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,7 +65,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 frontend_path = os.path.join(BASE_DIR, "frontend", "dist")
 
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 @app.get("/")
 def serve_frontend():
@@ -129,6 +128,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return {"message": "User created"}
+
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 # Login
 @app.post("/login")
