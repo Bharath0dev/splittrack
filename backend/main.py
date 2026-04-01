@@ -129,7 +129,6 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
     return {"message": "User created"}
 
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 # Login
 @app.post("/login")
@@ -148,6 +147,8 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
             "email": db_user.email
         }
     }
+
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 # Create Expense
 @app.post("/expenses")
