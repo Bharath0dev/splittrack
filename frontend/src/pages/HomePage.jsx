@@ -259,7 +259,64 @@ const css = `
   @media(max-width:1024px) { .st-metrics-4 { grid-template-columns:repeat(2,1fr); } .st-metric-val { font-size:22px; } .st-three-col { grid-template-columns:1fr 1fr; } }
   @media(max-width:768px)  { .st-page { padding:16px; } .st-topbar { padding:0 16px; } .st-month-badge { display:none; } .st-two-col-5050 { grid-template-columns:1fr; } .st-three-col { grid-template-columns:1fr; } .st-field-row { grid-template-columns:1fr; } }
   @media(max-width:480px)  { .st-topbar { height:52px; } .st-page { padding:12px; } .st-metric-val { font-size:20px; } .st-metrics-4 { gap:8px; } .st-metric-card { padding:12px 14px; } }
-`;
+
+  /* Responsive helpers */
+.st-desktop-only { display: flex; }
+.st-mobile-only { display: none; }
+
+/* Hamburger */
+.st-hamburger {
+  font-size: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Mobile menu */
+.st-mobile-menu {
+  position: absolute;
+  top: 60px;
+  right: 10px;
+  left: 10px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.1);
+  padding: 10px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+}
+
+.st-mobile-menu button {
+  padding: 10px;
+  text-align: left;
+  border: none;
+  background: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.st-mobile-menu button:hover {
+  background: var(--bg);
+}
+
+.st-mobile-menu .divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+
+.st-mobile-menu .danger {
+  color: var(--red);
+}
+
+/* Mobile behavior */
+@media (max-width: 768px) {
+  .st-desktop-only { display: none; }
+  .st-mobile-only { display: block; }
+}
+  `;
 
 const CAT_ICONS = {
   "Food & Dining":"🍔", Transportation:"🚖", Entertainment:"🎬",
@@ -334,7 +391,7 @@ const ProfileDropdown = ({ onLogout, onAddIncome, onSetMonthlyBudget }) => {
 
   // Read user info from localStorage (set during login)
   const user = (() => {
-    try { return JSON.parse(localStorage.getItem("st_user") || "{}"); }
+    try { return JSON.parse(localStorage.getItem("st_userF") || "{}"); }
     catch { return {}; }
   })();
 
@@ -425,6 +482,10 @@ const HomePage = () => {
   const [toastMsg,    setToastMsg]    = useState("");
   const [toastOn,     setToastOn]     = useState(false);
   const toastTimer = useRef(null);
+
+  const navigate = useNavigate(); 
+  
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [expModal,    setExpModal]    = useState(false);
   const [budgetModal, setBudgetModal] = useState(false);
@@ -740,15 +801,13 @@ const HomePage = () => {
       <div className="st-root">
 
         {/* ── Topbar ── */}
-        <div className="st-topbar">
+        {/* <div className="st-topbar">
           <div className="st-logo">Split<span>Track</span></div>
           <div className="st-nav">
             <button className={`st-nav-btn${activeTab==="personal"?" active":""}`} onClick={() => setActiveTab("personal")}>Personal</button>
             <button className={`st-nav-btn${activeTab==="groups"?"   active":""}`} onClick={() => setActiveTab("groups")}>Groups</button>
           </div>
           <div className="st-topbar-right">
-            {/* <div className="st-month-badge">{monthLabel}</div> */}
-
             <select
               className="st-select"
               value={selectedMonth}
@@ -767,8 +826,6 @@ const HomePage = () => {
                 );
               })}
             </select>
-            {/* ── Profile icon + dropdown ── */}
-            {/* <ProfileDropdown onLogout={handleLogout} /> */}
             <ProfileDropdown 
               onLogout={handleLogout}
               onAddIncome={() => {
@@ -784,7 +841,164 @@ const HomePage = () => {
               }}
             />
           </div>
+        </div> */}
+
+        <div className="st-topbar">
+          <div className="st-logo">Split<span>Track</span></div>
+
+          {/* Desktop Nav */}
+          <div className="st-nav st-desktop-only">
+            <button className={`st-nav-btn${activeTab==="personal"?" active":""}`} onClick={() => setActiveTab("personal")}>Personal</button>
+            <button className={`st-nav-btn${activeTab==="groups"?" active":""}`} onClick={() => setActiveTab("groups")}>Groups</button>
+          </div>
+
+          <div className="st-topbar-right">
+            {/* Month selector (hide on very small screens if needed) */}
+            <select
+              className="st-select st-desktop-only"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{ width: "160px", fontSize: "13px", padding: "6px 10px" }}
+            >
+              {Array.from({ length: 12 }).map((_, i) => {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const value = d.toISOString().slice(0, 7);
+
+                return (
+                  <option key={value} value={value}>
+                    {d.toLocaleString("default", { month: "long", year: "numeric" })}
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Desktop Profile */}
+            <div className="st-desktop-only">
+              <ProfileDropdown 
+                onLogout={handleLogout}
+                onAddIncome={() => {
+                  const key = new Date().toISOString().slice(0, 7);
+                  setIncomeMonth(key);
+                  setIncomeInput(incomeByMonth[key] || "");
+                  setIncomeModal(true);
+                }}
+                onSetMonthlyBudget={() => {
+                  const key = new Date().toISOString().slice(0, 7);
+                  setMonthlyBudgetInput(monthlyBudget[key] || "");
+                  setMonthlyBudgetModal(true);
+                }}
+              />
+            </div>
+
+            {/* Hamburger (mobile only) */}
+            <button 
+              className="st-hamburger st-mobile-only"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              ☰
+            </button>
+          </div>
         </div>
+
+        {/* {mobileMenuOpen && (
+          <div className="st-mobile-menu">
+            <button onClick={() => { setActiveTab("personal"); setMobileMenuOpen(false); }}>
+              Personal
+            </button>
+            <button onClick={() => { setActiveTab("groups"); setMobileMenuOpen(false); }}>
+              Groups
+            </button>
+
+            <div className="divider" />
+
+            <button onClick={() => { setIncomeModal(true); setMobileMenuOpen(false); }}>
+              Add Income
+            </button>
+            <button onClick={() => { setMonthlyBudgetModal(true); setMobileMenuOpen(false); }}>
+              Set Monthly Budget
+            </button>
+
+            <div className="divider" />
+
+            <button onClick={handleLogout} className="danger">
+              Logout
+            </button>
+          </div>
+        )} */}
+        {mobileMenuOpen && (
+            <div className="st-mobile-menu">
+
+              {/* Month selector */}
+              <div style={{ padding: "8px 10px" }}>
+                <label style={{ fontSize: "11px", color: "var(--muted)" }}>Month</label>
+                <select
+                  className="st-select"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  style={{ marginTop: "4px" }}
+                >
+                  {Array.from({ length: 12 }).map((_, i) => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const value = d.toISOString().slice(0, 7);
+
+                    return (
+                      <option key={value} value={value}>
+                        {d.toLocaleString("default", { month: "long", year: "numeric" })}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="divider" />
+
+              <button onClick={() => { setActiveTab("personal"); setMobileMenuOpen(false); }}>
+                Personal
+              </button>
+              <button onClick={() => { setActiveTab("groups"); setMobileMenuOpen(false); }}>
+                Groups
+              </button>
+
+              <div className="divider" />
+
+              {/* Profile */}
+              <button
+                onClick={() => {
+                  console.log("clicked");
+                  navigate("/profile");
+                  setMobileMenuOpen(false);
+                }}
+              >
+                My Profile
+              </button>
+
+              <button
+                onClick={() => {
+                  setIncomeModal(true);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                Add Income
+              </button>
+
+              <button
+                onClick={() => {
+                  setMonthlyBudgetModal(true);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                Set Monthly Budget
+              </button>
+
+              <div className="divider" />
+
+              <button onClick={handleLogout} className="danger">
+                Logout
+              </button>
+            </div>
+          )}
 
         {/* ── PERSONAL VIEW ── */}
         {activeTab === "personal" && (

@@ -66,10 +66,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 frontend_path = os.path.join(BASE_DIR, "frontend", "dist")
 
 
-@app.get("/")
-def serve_frontend():
-    index_path = os.path.join(BASE_DIR, "frontend", "dist", "index.html")
-    return FileResponse(index_path)
+# @app.get("/")
+# def serve_frontend():
+#     index_path = os.path.join(BASE_DIR, "frontend", "dist", "index.html")
+#     return FileResponse(index_path)
 
 # Password hashing
 def hash_password(password: str) -> str:
@@ -148,7 +148,6 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
         }
     }
 
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 # Create Expense
 @app.post("/expenses")
@@ -313,3 +312,6 @@ def get_category_budget(
     return db.query(models.CategoryBudget).filter(
         models.CategoryBudget.user_id == user.id
     ).all()
+
+
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")

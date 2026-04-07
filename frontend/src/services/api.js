@@ -1,8 +1,17 @@
 import axios from "axios";
 
+// const api = axios.create({
+//   // baseURL: "http://localhost:8000",
+//   baseURL: window.location.origin,
+// });
+
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:8000"
+    : window.location.origin;
+
 const api = axios.create({
-  // baseURL: "http://localhost:8000",
-  baseURL: window.location.origin,
+  baseURL: API_BASE,
 });
 
 // Attach JWT automatically
